@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://cimanggu.my.id; media-src 'self' blob:;">
+  <title>Ngajiku - Absensi Pengajian</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1 class="logo">Ngajiku</h1>
+      </div>
+      <div class="header-center">
+        <span id="currentTime" class="time-display"></span>
+      </div>
+      <div class="header-right">
+        <span id="connectionStatus" class="status-badge status-offline">Offline</span>
+        <button id="btnSync" class="btn-icon" title="Sinkronkan Data">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+          </svg>
+        </button>
+        <button id="btnSettings" class="btn-icon" title="Pengaturan">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Screen: Event Selection -->
+      <section id="screenEventSelect" class="screen active">
+        <div class="screen-header">
+          <h2 class="screen-title">Pilih Acara Pengajian</h2>
+          <p class="screen-subtitle">Silakan pilih acara yang sedang berlangsung</p>
+        </div>
+
+        <!-- Search Box -->
+        <div class="search-container">
+          <div class="search-box">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input
+              type="text"
+              id="eventSearchInput"
+              class="search-input"
+              placeholder="Cari acara..."
+              autocomplete="off"
+            >
+            <button id="btnClearSearch" class="search-clear" style="display: none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Today's Events Section -->
+        <div id="todayEventsSection" class="events-section today-section">
+          <div class="section-header">
+            <div class="section-badge today-badge">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+              Hari Ini
+            </div>
+          </div>
+          <div class="swiper-container" id="eventSwiper">
+            <div class="swiper-wrapper" id="eventList">
+              <!-- Today's events will be populated here -->
+            </div>
+            <button class="swiper-btn swiper-prev" id="swiperPrev">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+            </button>
+            <button class="swiper-btn swiper-next" id="swiperNext">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </button>
+            <div class="swiper-dots" id="swiperDots"></div>
+          </div>
+        </div>
+
+        <!-- Other Events Section -->
+        <div id="otherEventsSection" class="events-section other-section" style="display: none;">
+          <div class="section-header">
+            <div class="section-badge other-badge">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              Acara Lainnya
+            </div>
+          </div>
+          <div class="other-events-grid" id="otherEventsList">
+            <!-- Other events will be populated here -->
+          </div>
+        </div>
+
+        <!-- No Search Results -->
+        <div id="noSearchResults" class="no-event-message" style="display: none;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+            <line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+          <p>Tidak ada acara yang cocok dengan pencarian</p>
+          <button id="btnClearSearchResults" class="btn btn-secondary">Hapus Pencarian</button>
+        </div>
+
+        <div id="noEventMessage" class="no-event-message" style="display: none;">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+          <p>Tidak ada acara yang sedang berlangsung</p>
+          <button id="btnRefreshEvents" class="btn btn-secondary">Muat Ulang</button>
+        </div>
+
+        <div id="loadingEvents" class="loading-container">
+          <div class="spinner"></div>
+          <p>Memuat daftar acara...</p>
+        </div>
+      </section>
+
+      <!-- Screen: Scan Mode -->
+      <section id="screenScan" class="screen">
+        <div class="screen-header">
+          <button id="btnBackToEvents" class="btn-back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Kembali
+          </button>
+          <div class="event-info">
+            <h2 id="selectedEventName" class="event-name">Nama Acara</h2>
+            <span id="selectedEventDate" class="event-date"></span>
+          </div>
+        </div>
+
+        <div class="scan-layout">
+          <!-- Left: Scan Box -->
+          <div class="scan-container">
+            <div class="scan-box">
+              <div class="scan-icon">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+                  <rect x="7" y="7" width="10" height="10" rx="1"/>
+                </svg>
+              </div>
+              <h3 class="scan-title">Scan Barcode</h3>
+              <p class="scan-subtitle">Arahkan barcode ke scanner</p>
+
+              <!-- Hidden input for barcode scanner - MUST be visible for focus but off-screen -->
+              <div class="barcode-input-wrapper">
+                <input
+                  type="text"
+                  id="barcodeInput"
+                  class="barcode-input"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  inputmode="none"
+                  autofocus
+                  placeholder="Scan barcode disini..."
+                >
+              </div>
+
+              <div id="scanError" class="scan-error" style="display: none;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>
+                </svg>
+                <span id="scanErrorText">Barcode tidak valid, coba lagi</span>
+              </div>
+            </div>
+
+            <div class="scan-stats">
+              <div class="stat-item">
+                <span class="stat-value" id="todayCount">0</span>
+                <span class="stat-label">Hadir Hari Ini</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value" id="unsyncedCount">0</span>
+                <span class="stat-label">Belum Tersinkron</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Attendance History Panel -->
+          <div class="attendance-history-panel">
+            <div class="history-header">
+              <h3 class="history-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                </svg>
+                Riwayat Absensi
+              </h3>
+              <button id="btnRefreshHistory" class="btn-icon-small" title="Muat Ulang">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 4v6h-6M1 20v-6h6"/>
+                  <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                </svg>
+              </button>
+            </div>
+            <div class="history-count">
+              <span id="historyCount">0</span> peserta sudah absen
+            </div>
+            <div id="historyLoading" class="history-loading" style="display: none;">
+              <div class="spinner-small"></div>
+              <span>Memuat data...</span>
+            </div>
+            <div id="historyEmpty" class="history-empty" style="display: none;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 12h8M12 8v8"/>
+              </svg>
+              <p>Belum ada peserta yang absen</p>
+            </div>
+            <div id="historyList" class="history-list">
+              <!-- Attendance items will be populated here -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Screen: User Validation -->
+      <section id="screenValidation" class="screen">
+        <div class="validation-container">
+          <div class="user-card">
+            <div class="user-avatar">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <div class="user-info">
+              <h3 id="userName" class="user-name">Nama Lengkap</h3>
+              <p id="userPhone" class="user-detail"></p>
+              <p id="userBirthdate" class="user-detail"></p>
+            </div>
+          </div>
+
+          <div class="validation-timer">
+            <div class="timer-ring">
+              <svg viewBox="0 0 100 100">
+                <circle class="timer-bg" cx="50" cy="50" r="45"/>
+                <circle id="timerProgress" class="timer-progress" cx="50" cy="50" r="45"/>
+              </svg>
+              <span id="timerCount" class="timer-count">5</span>
+            </div>
+            <p class="timer-label">Memverifikasi data...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Screen: Photo Capture -->
+      <section id="screenPhoto" class="screen">
+        <div class="photo-container">
+          <div class="camera-wrapper">
+            <video id="cameraPreview" class="camera-preview" autoplay playsinline></video>
+            <canvas id="photoCanvas" class="photo-canvas" style="display: none;"></canvas>
+            <img id="capturedPhoto" class="captured-photo" style="display: none;">
+
+            <div id="cameraOverlay" class="camera-overlay">
+              <div class="camera-frame"></div>
+            </div>
+
+            <div id="cameraError" class="camera-error" style="display: none;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+              <p>Kamera tidak tersedia</p>
+            </div>
+          </div>
+
+          <div class="photo-info">
+            <h3 id="photoUserName" class="photo-user-name">Nama Pengguna</h3>
+            <p class="photo-instruction" id="photoInstruction">Posisikan wajah dalam bingkai</p>
+          </div>
+
+          <div class="photo-actions">
+            <button id="btnRetakePhoto" class="btn btn-secondary" style="display: none;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 4v6h-6M1 20v-6h6"/>
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+              </svg>
+              Ambil Ulang
+            </button>
+            <button id="btnConfirmPhoto" class="btn btn-primary" style="display: none;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Konfirmasi
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Screen: Success -->
+      <section id="screenSuccess" class="screen">
+        <div class="success-container">
+          <div class="success-icon">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="16 8 10 14 7 11"/>
+            </svg>
+          </div>
+          <h2 class="success-title">Absensi Berhasil!</h2>
+
+          <div class="success-profile">
+            <img id="successPhoto" class="success-avatar" src="" alt="Foto">
+            <h3 id="successName" class="success-name">Nama Pengguna</h3>
+            <p id="successEvent" class="success-event">Nama Acara</p>
+            <p id="successTime" class="success-time"></p>
+          </div>
+
+          <div class="success-countdown">
+            <span>Kembali dalam </span>
+            <span id="successCountdown">3</span>
+            <span> detik...</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal: Already Attended -->
+    <div id="modalAlreadyAttended" class="modal">
+      <div class="modal-content">
+        <div class="modal-icon modal-icon-warning">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <h3 class="modal-title">Sudah Absen</h3>
+        <p class="modal-message">Anda sudah melakukan absensi untuk acara ini hari ini.</p>
+        <button id="btnCloseAlreadyAttended" class="btn btn-primary">Tutup</button>
+      </div>
+    </div>
+
+    <!-- Modal: Sync -->
+    <div id="modalSync" class="modal">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3 class="modal-title">Sinkronisasi Data</h3>
+          <button id="btnCloseSync" class="btn-close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="sync-stats">
+            <div class="sync-stat">
+              <span id="syncTotal" class="sync-value">0</span>
+              <span class="sync-label">Total Data</span>
+            </div>
+            <div class="sync-stat">
+              <span id="syncPending" class="sync-value">0</span>
+              <span class="sync-label">Belum Sinkron</span>
+            </div>
+            <div class="sync-stat">
+              <span id="syncSuccess" class="sync-value">0</span>
+              <span class="sync-label">Tersinkron</span>
+            </div>
+          </div>
+
+          <div id="syncProgress" class="sync-progress" style="display: none;">
+            <div class="progress-bar">
+              <div id="syncProgressBar" class="progress-fill"></div>
+            </div>
+            <p id="syncProgressText" class="progress-text">Menyinkronkan...</p>
+          </div>
+
+          <div id="unsyncedList" class="unsynced-list"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="btnStartSync" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+            </svg>
+            Sinkronkan Sekarang
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Settings -->
+    <div id="modalSettings" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Pengaturan</h3>
+          <button id="btnCloseSettings" class="btn-close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="settings-item">
+            <span class="settings-label">Versi Aplikasi</span>
+            <span id="appVersion" class="settings-value">1.0.0</span>
+          </div>
+          <div class="settings-item">
+            <span class="settings-label">Platform</span>
+            <span id="appPlatform" class="settings-value">-</span>
+          </div>
+          <div class="settings-item">
+            <span class="settings-label">Database</span>
+            <span id="dbStats" class="settings-value">-</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btnExitApp" class="btn btn-danger">Keluar Aplikasi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+  </div>
+
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
