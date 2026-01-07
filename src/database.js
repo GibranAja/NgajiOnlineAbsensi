@@ -130,8 +130,8 @@ class AbsensiDatabase {
   saveAbsensi(data) {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO absensi (person_id, acara_id, nama, tanggal_lahir, telepon, posisi, photo_data, tanggal, synced)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO absensi (person_id, acara_id, nama, tanggal_lahir, telepon, posisi, photo_data, tanggal, tanggal_absen, synced)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       stmt.run([
@@ -143,6 +143,7 @@ class AbsensiDatabase {
         data.posisi || null,
         data.photoData || null,
         data.tanggal,
+        data.tanggalAbsen || new Date().toISOString(),
         data.synced ? 1 : 0
       ]);
 

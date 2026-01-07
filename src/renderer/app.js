@@ -650,6 +650,9 @@ async function submitAbsensi() {
   const now = new Date();
   const jakartaISO = now.toISOString();
 
+  // Get Jakarta timestamp for tanggal_absen
+  const jakartaTimestamp = window.utils.getJakartaTimestamp();
+
   // Prepare photo data (remove data URL prefix)
   let photoBase64 = '';
   if (state.capturedPhoto) {
@@ -665,6 +668,7 @@ async function submitAbsensi() {
     posisi: state.scannedUser.Posisi,
     photoData: photoBase64,
     tanggal: todayStr,
+    tanggalAbsen: jakartaTimestamp,
     synced: false
   };
 
@@ -1271,12 +1275,7 @@ function renderAttendanceHistory(data) {
     let formattedTime = '';
     if (timeStr) {
       try {
-        const time = new Date(timeStr);
-        formattedTime = time.toLocaleTimeString('id-ID', {
-          timeZone: 'Asia/Jakarta',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+        formattedTime = formatTimestampToJakarta(timeStr);
       } catch (e) {
         formattedTime = '';
       }
@@ -1411,6 +1410,54 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+/**
+ * Format timestamp to Jakarta timezone time (HH:MM)
+ * Handles various timestamp formats including:
+ * - ISO format with timezone (e.g., "2026-01-07T09:55:00+07:00")
+ * - ISO format UTC (e.g., "2026-01-07T02:55:00Z" or "2026-01-07T02:55:00.000Z")
+ * - SQLite format without timezone (e.g., "2026-01-07 02:55:00") - assumed UTC
+ * - Date-only format (e.g., "2026-01-07")
+ */
+function formatTimestampToJakarta(timeStr) {
+  if (!timeStr) return '';
+
+  try {
+    let date;
+
+    // Check if timestamp already has timezone info (+07:00 or similar)
+    if (timeStr.includes('+07:00') || timeStr.includes('+07')) {
+      // Already in Jakarta timezone, parse directly
+      date = new Date(timeStr);
+    } else if (timeStr.includes('Z') || timeStr.includes('+') || timeStr.includes('-')) {
+      // Has UTC indicator or other timezone, parse normally
+      date = new Date(timeStr);
+    } else if (timeStr.includes('T')) {
+      // ISO format without timezone - assume UTC
+      date = new Date(timeStr + 'Z');
+    } else if (timeStr.includes(' ') && timeStr.includes(':')) {
+      // SQLite format "YYYY-MM-DD HH:MM:SS" - assume UTC
+      // Convert to ISO format and add Z for UTC
+      date = new Date(timeStr.replace(' ', 'T') + 'Z');
+    } else {
+      // Date only or other format
+      date = new Date(timeStr);
+    }
+
+    if (isNaN(date.getTime())) {
+      return '';
+    }
+
+    return date.toLocaleTimeString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    console.error('formatTimestampToJakarta error:', e, timeStr);
+    return '';
+  }
 }
 
 function formatDate(dateStr) {
