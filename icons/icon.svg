@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="#2E7D32"/>
+
+  <!-- Inner circle -->
+  <circle cx="256" cy="256" r="200" fill="#4CAF50"/>
+
+  <!-- Book/Quran representation -->
+  <rect x="180" y="140" width="152" height="200" rx="8" fill="#FFF9C4"/>
+  <rect x="180" y="140" width="76" height="200" rx="8" fill="#FFEB3B"/>
+
+  <!-- Book spine detail -->
+  <line x1="256" y1="140" x2="256" y2="340" stroke="#FBC02D" stroke-width="3"/>
+
+  <!-- Lines representing text -->
+  <line x1="200" y1="180" x2="236" y2="180" stroke="#9E9E9E" stroke-width="3" stroke-linecap="round"/>
+  <line x1="200" y1="200" x2="236" y2="200" stroke="#9E9E9E" stroke-width="3" stroke-linecap="round"/>
+  <line x1="200" y1="220" x2="230" y2="220" stroke="#9E9E9E" stroke-width="3" stroke-linecap="round"/>
+
+  <line x1="276" y1="180" x2="312" y2="180" stroke="#9E9E9E" stroke-width="3" stroke-linecap="round"/>
+  <line x1="276" y1="200" x2="312" y2="200" stroke="#9E9E9E" stroke-width="3" stroke-linecap="round"/>
+  <line x1="276" y1="220" x2="306" y2="220" stroke="#9E9E9E" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Checkmark for attendance -->
+  <circle cx="380" cy="380" r="60" fill="#1976D2"/>
+  <path d="M 350 380 L 370 400 L 410 360" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Text "N" in modern style -->
+  <text x="256" y="300" font-family="Arial, sans-serif" font-size="100" font-weight="bold" fill="#1B5E20" text-anchor="middle">N</text>
+</svg>
