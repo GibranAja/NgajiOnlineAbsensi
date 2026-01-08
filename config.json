@@ -1,0 +1,9 @@
+{
+  "s3": {
+    "accessKey": "30S2OUDU3IY39A6PQJ8L",
+    "secretKey": "80afWLvL8GOFG0qUUoPn3x9jdAuOZNtUnCruwgUL",
+    "serviceUrl": "https://is3.cloudhost.id",
+    "bucketName": "portalub",
+    "region": "us-east-1"
+  }
+}

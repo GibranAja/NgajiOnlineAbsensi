@@ -79,7 +79,39 @@ class ApiService {
   }
 
   /**
-   * Get all acara
+   * Get all acara from /api/Absensi/GetAcara
+   * @returns {Promise<Array>} - List of all events
+   */
+  async getAcara() {
+    try {
+      const url = new URL(`${this.baseUrl}/Absensi/GetAcara`);
+      url.searchParams.append('ApiKey', this.apiKey);
+
+      console.log('[API] Fetching acara from:', url.toString());
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : [];
+      console.log('[API] Acara response:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching acara:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all acara (legacy method)
    * @returns {Promise<Array>} - List of all events
    */
   async getAllAcara() {
@@ -95,20 +127,22 @@ class ApiService {
   /**
    * Get absensi by acara ID and date
    * @param {number} refId - Acara/Event ID
-   * @param {string} tanggal - Date in ISO format
+   * @param {string} tanggal - Date in YYYY-MM-DD format
    * @returns {Promise<Array>} - List of attendance records
    */
   async getAbsensiByAcaraId(refId, tanggal) {
     try {
-      const url = new URL('/Absensi/GetAbsensiByAcaraId', this.baseUrl);
+      const url = new URL(`${this.baseUrl}/Absensi/GetAbsensiByAcaraId`);
       url.searchParams.append('RefId', refId);
       url.searchParams.append('Tanggal', tanggal);
       url.searchParams.append('ApiKey', this.apiKey);
 
+      console.log('[API] Fetching absensi from:', url.toString());
+
       const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
-          'Accept': 'application/json'
+          'Accept': '*/*'
         }
       });
 
@@ -117,7 +151,9 @@ class ApiService {
       }
 
       const text = await response.text();
-      return text ? JSON.parse(text) : [];
+      const data = text ? JSON.parse(text) : [];
+      console.log('[API] Absensi response:', data);
+      return data;
     } catch (error) {
       console.error('Error fetching absensi:', error);
       throw error;

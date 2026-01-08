@@ -90,6 +90,7 @@ class AbsensiDatabase {
         telepon TEXT,
         posisi INTEGER,
         photo_data TEXT,
+        photo_url TEXT,
         tanggal TEXT NOT NULL,
         tanggal_absen TEXT DEFAULT CURRENT_TIMESTAMP,
         synced INTEGER DEFAULT 0,
@@ -97,6 +98,14 @@ class AbsensiDatabase {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Add photo_url column if it doesn't exist (for existing databases)
+    try {
+      this.db.run(`ALTER TABLE absensi ADD COLUMN photo_url TEXT`);
+      console.log('[DB] Added photo_url column');
+    } catch (e) {
+      // Column already exists, ignore
+    }
 
     // Create indexes
     this.db.run(`
@@ -130,8 +139,8 @@ class AbsensiDatabase {
   saveAbsensi(data) {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO absensi (person_id, acara_id, nama, tanggal_lahir, telepon, posisi, photo_data, tanggal, tanggal_absen, synced)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO absensi (person_id, acara_id, nama, tanggal_lahir, telepon, posisi, photo_data, photo_url, tanggal, tanggal_absen, synced)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       stmt.run([
@@ -142,6 +151,7 @@ class AbsensiDatabase {
         data.telepon || null,
         data.posisi || null,
         data.photoData || null,
+        data.photoUrl || null,
         data.tanggal,
         data.tanggalAbsen || new Date().toISOString(),
         data.synced ? 1 : 0

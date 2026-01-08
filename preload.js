@@ -17,6 +17,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllAbsensi: () => ipcRenderer.invoke('db:getAllAbsensi'),
   deleteAbsensi: (id) => ipcRenderer.invoke('db:deleteAbsensi', id),
 
+  // S3 Storage operations
+  uploadPhotoToS3: (base64Data, personId, acaraId) =>
+    ipcRenderer.invoke('s3:uploadPhoto', { base64Data, personId, acaraId }),
+  getS3Config: () => ipcRenderer.invoke('s3:getConfig'),
+  updateS3Config: (config) => ipcRenderer.invoke('s3:updateConfig', config),
+  testS3Connection: () => ipcRenderer.invoke('s3:testConnection'),
+
   // App control
   quit: () => ipcRenderer.invoke('app:quit'),
   minimize: () => ipcRenderer.invoke('app:minimize'),

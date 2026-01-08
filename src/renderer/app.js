@@ -495,6 +495,9 @@ function goToEventSelect() {
   // Clear search when returning to event selection
   clearEventSearch();
 
+  // Stop real-time attendance history refresh
+  stopAttendanceHistoryRefresh();
+
   stopCamera();
   showScreen('screenEventSelect');
   loadEvents();
@@ -511,6 +514,7 @@ function goToScan() {
   showScreen('screenScan');
   updateStats();
   loadAttendanceHistory(); // Load attendance history for selected event
+  startAttendanceHistoryRefresh(); // Start real-time refresh
 
   // Focus barcode input
   setTimeout(() => {
@@ -655,8 +659,33 @@ async function submitAbsensi() {
 
   // Prepare photo data (remove data URL prefix)
   let photoBase64 = '';
+  let photoUrl = '';
+
   if (state.capturedPhoto) {
     photoBase64 = state.capturedPhoto.replace(/^data:image\/\w+;base64,/, '');
+
+    // Upload photo to S3 first if online
+    if (state.isOnline) {
+      log('Uploading photo to S3...');
+      try {
+        const uploadResult = await window.electronAPI.uploadPhotoToS3(
+          photoBase64,
+          state.scannedUser.Id,
+          state.selectedEvent.id
+        );
+
+        if (uploadResult.success && uploadResult.url) {
+          photoUrl = uploadResult.url;
+          log('Photo uploaded to S3:', photoUrl);
+        } else {
+          log('S3 upload failed:', uploadResult.error);
+          // Continue with base64 as fallback
+        }
+      } catch (uploadError) {
+        logError('S3 upload error:', uploadError);
+        // Continue with base64 as fallback
+      }
+    }
   }
 
   const absensiData = {
@@ -666,7 +695,8 @@ async function submitAbsensi() {
     tanggalLahir: state.scannedUser.TanggalLahir,
     telepon: state.scannedUser.Telepon,
     posisi: state.scannedUser.Posisi,
-    photoData: photoBase64,
+    photoData: photoUrl ? '' : photoBase64, // Only store base64 if S3 upload failed
+    photoUrl: photoUrl, // Store S3 URL
     tanggal: todayStr,
     tanggalAbsen: jakartaTimestamp,
     synced: false
@@ -677,14 +707,30 @@ async function submitAbsensi() {
 
   if (state.isOnline) {
     try {
-      await apiService.inputAbsenWithImageBytes({
-        personId: state.scannedUser.Id,
-        acaraId: state.selectedEvent.id,
-        nama: state.scannedUser.Nama,
-        posisi: state.scannedUser.Posisi,
-        tanggal: jakartaISO,
-        photoData: photoBase64
-      });
+      // Use different API endpoint based on whether we have S3 URL or not
+      if (photoUrl) {
+        // Photo already uploaded to S3, use URL endpoint
+        log('Submitting absensi with S3 URL...');
+        await apiService.inputAbsenWithImageUrl({
+          personId: state.scannedUser.Id,
+          acaraId: state.selectedEvent.id,
+          nama: state.scannedUser.Nama,
+          posisi: state.scannedUser.Posisi,
+          tanggal: jakartaISO,
+          photoUrl: photoUrl
+        });
+      } else {
+        // No S3 URL, fallback to base64 upload
+        log('Submitting absensi with base64 data...');
+        await apiService.inputAbsenWithImageBytes({
+          personId: state.scannedUser.Id,
+          acaraId: state.selectedEvent.id,
+          nama: state.scannedUser.Nama,
+          posisi: state.scannedUser.Posisi,
+          tanggal: jakartaISO,
+          photoData: photoBase64
+        });
+      }
       synced = true;
       showToast('Absensi berhasil disimpan', 'success');
     } catch (error) {
@@ -759,102 +805,58 @@ async function loadEvents() {
   elements.noSearchResults.style.display = 'none';
 
   try {
-    // Try to fetch from API
+    // Fetch from API /api/Absensi/GetAcara
     let allEvents = [];
 
-    if (state.isOnline) {
-      try {
-        allEvents = await apiService.getAllAcara() || [];
-        log('Fetched events from API:', allEvents.length);
-      } catch (apiError) {
-        log('API fetch error:', apiError.message);
-      }
-    }
+    try {
+      log('Fetching events from API...');
+      const apiData = await apiService.getAcara();
 
-    // Add dummy data if no events from API or offline
-    if (allEvents.length === 0) {
-      log('Using dummy data for events');
-      allEvents = [
-        // Today's events
-        {
-          id: 1,
-          nama: 'Pengajian Rutin Ahad Pagi',
-          deskripsi: 'Kajian rutin setiap hari Ahad pagi bersama Ustadz Ahmad',
-          tanggalMulai: '2026-01-06T05:00:00',
-          tanggalSelesai: '2026-01-06T08:00:00'
-        },
-        {
-          id: 2,
-          nama: 'Kajian Tafsir Al-Quran',
-          deskripsi: 'Kajian mendalam tafsir Al-Quran juz 30',
-          tanggalMulai: '2026-01-06T09:00:00',
-          tanggalSelesai: '2026-01-06T11:00:00'
-        },
-        {
-          id: 3,
-          nama: 'Majelis Dzikir Senin',
-          deskripsi: 'Dzikir bersama dan pembacaan ratib',
-          tanggalMulai: '2026-01-06T19:00:00',
-          tanggalSelesai: '2026-01-06T21:00:00'
-        },
-        // Other dates - upcoming events
-        {
-          id: 4,
-          nama: 'Kajian Malam Jumat',
-          deskripsi: 'Kajian malam jumat berkah bersama Ustadz Abdullah',
-          tanggalMulai: '2026-01-09T19:00:00',
-          tanggalSelesai: '2026-01-09T21:00:00'
-        },
-        {
-          id: 5,
-          nama: 'Pengajian Ibu-Ibu',
-          deskripsi: 'Pengajian khusus ibu-ibu dengan Ustadzah Fatimah',
-          tanggalMulai: '2026-01-10T13:00:00',
-          tanggalSelesai: '2026-01-10T15:00:00'
-        },
-        {
-          id: 6,
-          nama: 'Tahfidz Quran Anak',
-          deskripsi: 'Program hafalan Quran untuk anak-anak',
-          tanggalMulai: '2026-01-11T15:00:00',
-          tanggalSelesai: '2026-01-11T17:00:00'
-        },
-        {
-          id: 7,
-          nama: 'Kajian Fiqih Muamalah',
-          deskripsi: 'Membahas hukum-hukum dalam transaksi islam',
-          tanggalMulai: '2026-01-12T19:00:00',
-          tanggalSelesai: '2026-01-12T21:00:00'
-        },
-        {
-          id: 8,
-          nama: 'Pengajian Ahad Sore',
-          deskripsi: 'Kajian sore hari membahas hadits pilihan',
-          tanggalMulai: '2026-01-13T15:00:00',
-          tanggalSelesai: '2026-01-13T17:00:00'
-        },
-        {
-          id: 9,
-          nama: 'Tausiyah Subuh',
-          deskripsi: 'Tausiyah singkat setelah shalat subuh berjamaah',
-          tanggalMulai: '2026-01-14T05:30:00',
-          tanggalSelesai: '2026-01-14T06:30:00'
-        },
-        {
-          id: 10,
-          nama: 'Majelis Sholawat',
-          deskripsi: 'Pembacaan sholawat bersama dan dzikir',
-          tanggalMulai: '2026-01-15T19:00:00',
-          tanggalSelesai: '2026-01-15T21:00:00'
-        }
-      ];
+      // Map API response to use only id, nama, tanggalDari
+      allEvents = (apiData || []).map(event => ({
+        id: event.id,
+        nama: (event.nama || '').trim(), // Remove trailing tabs/spaces
+        tanggalDari: event.tanggalDari,
+        keterangan: event.keterangan || ''
+      }));
+
+      log('Fetched events from API:', allEvents.length);
+    } catch (apiError) {
+      logError('API fetch error:', apiError.message);
+      allEvents = [];
     }
 
     // Store all events
     state.allEvents = allEvents;
 
     // Group events by today and other days
-    groupEventsByDate();
+    const todayStr = window.utils.getJakartaDateString(); // Format: YYYY-MM-DD
+    log('Today date:', todayStr);
+
+    state.todayEvents = [];
+    state.otherEvents = [];
+
+    allEvents.forEach(event => {
+      if (!event.tanggalDari) {
+        // No date, put in other events
+        state.otherEvents.push(event);
+        return;
+      }
+
+      // Extract date part (YYYY-MM-DD) from tanggalDari
+      const eventDate = event.tanggalDari.split('T')[0];
+
+      if (eventDate === todayStr) {
+        state.todayEvents.push(event);
+      } else {
+        state.otherEvents.push(event);
+      }
+    });
+
+    state.events = state.todayEvents;
+
+    log('Today events:', state.todayEvents.length);
+    log('Other events:', state.otherEvents.length);
 
     // Apply search filter if any
     filterAndRenderEvents();
@@ -870,40 +872,6 @@ async function loadEvents() {
   }
 }
 
-function groupEventsByDate() {
-  const todayStr = window.utils.getJakartaDateString();
-  log('Grouping events for today:', todayStr);
-
-  state.todayEvents = [];
-  state.otherEvents = [];
-
-  state.allEvents.forEach(event => {
-    const startDate = event.tanggalMulai || event.startDate;
-    const endDate = event.tanggalSelesai || event.endDate;
-
-    if (!startDate) return;
-
-    // Extract date part (YYYY-MM-DD)
-    const eventStartDate = startDate.split('T')[0];
-    const eventEndDate = endDate ? endDate.split('T')[0] : eventStartDate;
-
-    // Check if today falls within the event date range
-    const isTodayEvent = todayStr >= eventStartDate && todayStr <= eventEndDate;
-
-    if (isTodayEvent) {
-      state.todayEvents.push(event);
-    } else {
-      state.otherEvents.push(event);
-    }
-  });
-
-  // Also use todayEvents as the main events for swiper
-  state.events = state.todayEvents;
-
-  log('Today events:', state.todayEvents.length);
-  log('Other events:', state.otherEvents.length);
-}
-
 function filterAndRenderEvents() {
   const query = state.searchQuery.toLowerCase().trim();
 
@@ -912,14 +880,14 @@ function filterAndRenderEvents() {
 
   if (query) {
     filteredTodayEvents = state.todayEvents.filter(event => {
-      const name = (event.nama || event.name || '').toLowerCase();
-      const desc = (event.deskripsi || event.description || '').toLowerCase();
+      const name = (event.nama || '').toLowerCase();
+      const desc = (event.keterangan || '').toLowerCase();
       return name.includes(query) || desc.includes(query);
     });
 
     filteredOtherEvents = state.otherEvents.filter(event => {
-      const name = (event.nama || event.name || '').toLowerCase();
-      const desc = (event.deskripsi || event.description || '').toLowerCase();
+      const name = (event.nama || '').toLowerCase();
+      const desc = (event.keterangan || '').toLowerCase();
       return name.includes(query) || desc.includes(query);
     });
   }
@@ -967,15 +935,15 @@ function renderTodayEvents(events) {
     slide.className = 'swiper-slide today-event';
     slide.style.animationDelay = `${index * 0.1}s`;
     slide.innerHTML = `
-      <h3 class="event-card-title">${escapeHtml(event.nama || event.name || 'Acara')}</h3>
-      <p class="event-card-desc">${escapeHtml(event.deskripsi || event.description || '')}</p>
+      <h3 class="event-card-title">${escapeHtml(event.nama || 'Acara')}</h3>
+      <p class="event-card-desc">${escapeHtml(event.keterangan || '')}</p>
       <div class="event-card-meta">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
           <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
           <line x1="3" y1="10" x2="21" y2="10"/>
         </svg>
-        <span>${formatEventDate(event)}</span>
+        <span>${formatEventDateFromTanggalDari(event.tanggalDari)}</span>
       </div>
     `;
 
@@ -991,8 +959,8 @@ function renderOtherEvents(events) {
 
   // Sort by date (nearest first)
   const sortedEvents = [...events].sort((a, b) => {
-    const dateA = new Date(a.tanggalMulai || a.startDate);
-    const dateB = new Date(b.tanggalMulai || b.startDate);
+    const dateA = new Date(a.tanggalDari || 0);
+    const dateB = new Date(b.tanggalDari || 0);
     return dateA - dateB;
   });
 
@@ -1001,11 +969,11 @@ function renderOtherEvents(events) {
     card.className = 'other-event-card';
     card.style.animationDelay = `${index * 0.05}s`;
 
-    const eventDate = formatEventDateFull(event);
+    const eventDate = formatEventDateFromTanggalDari(event.tanggalDari);
 
     card.innerHTML = `
-      <h4 class="event-card-title">${escapeHtml(event.nama || event.name || 'Acara')}</h4>
-      <p class="event-card-desc">${escapeHtml(event.deskripsi || event.description || '')}</p>
+      <h4 class="event-card-title">${escapeHtml(event.nama || 'Acara')}</h4>
+      <p class="event-card-desc">${escapeHtml(event.keterangan || '')}</p>
       <div class="event-card-date">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -1021,16 +989,15 @@ function renderOtherEvents(events) {
   });
 }
 
-function formatEventDateFull(event) {
-  const startDate = event.tanggalMulai || event.startDate;
-  if (!startDate) return '';
+function formatEventDateFromTanggalDari(tanggalDari) {
+  if (!tanggalDari) return '';
 
   try {
-    const date = new Date(startDate);
+    const date = new Date(tanggalDari);
     return date.toLocaleDateString('id-ID', {
       weekday: 'long',
       day: 'numeric',
-      month: 'long',
+      month: 'short',
       year: 'numeric'
     });
   } catch (e) {
@@ -1136,14 +1103,48 @@ async function startSync() {
 
     for (const item of unsyncedData) {
       try {
-        await apiService.inputAbsenWithImageBytes({
-          personId: item.person_id,
-          acaraId: item.acara_id,
-          nama: item.nama,
-          posisi: item.posisi,
-          tanggal: new Date(item.tanggal_absen).toISOString(),
-          photoData: item.photo_data || ''
-        });
+        // Upload photo to S3 first if not already uploaded
+        let photoUrl = item.photo_url || '';
+
+        if (!photoUrl && item.photo_data) {
+          log('Uploading photo to S3 during sync...');
+          try {
+            const uploadResult = await window.electronAPI.uploadPhotoToS3(
+              item.photo_data,
+              item.person_id,
+              item.acara_id
+            );
+            if (uploadResult.success && uploadResult.url) {
+              photoUrl = uploadResult.url;
+              log('Photo uploaded to S3:', photoUrl);
+            }
+          } catch (uploadError) {
+            logError('S3 upload during sync error:', uploadError);
+          }
+        }
+
+        // Use different API endpoint based on whether we have S3 URL or not
+        if (photoUrl) {
+          // Photo already uploaded to S3, use URL endpoint
+          await apiService.inputAbsenWithImageUrl({
+            personId: item.person_id,
+            acaraId: item.acara_id,
+            nama: item.nama,
+            posisi: item.posisi,
+            tanggal: new Date(item.tanggal_absen).toISOString(),
+            photoUrl: photoUrl
+          });
+        } else {
+          // No S3 URL, fallback to base64 upload
+          await apiService.inputAbsenWithImageBytes({
+            personId: item.person_id,
+            acaraId: item.acara_id,
+            nama: item.nama,
+            posisi: item.posisi,
+            tanggal: new Date(item.tanggal_absen).toISOString(),
+            photoData: item.photo_data || ''
+          });
+        }
 
         await window.electronAPI.markAsSynced(item.id);
         synced++;
@@ -1191,45 +1192,41 @@ async function updateStats() {
 }
 
 // ==================== ATTENDANCE HISTORY ====================
-async function loadAttendanceHistory() {
+let attendanceHistoryInterval = null;
+const ATTENDANCE_REFRESH_INTERVAL = 10000; // 10 seconds for real-time updates
+
+async function loadAttendanceHistory(showLoading = true) {
   if (!state.selectedEvent) return;
 
   log('Loading attendance history for event:', state.selectedEvent.id);
 
-  // Show loading state
-  elements.historyLoading.style.display = 'flex';
-  elements.historyEmpty.style.display = 'none';
-  elements.historyList.innerHTML = '';
+  // Show loading state only on initial load
+  if (showLoading) {
+    elements.historyLoading.style.display = 'flex';
+    elements.historyEmpty.style.display = 'none';
+    elements.historyList.innerHTML = '';
+  }
 
   try {
-    // Get today's date in ISO format for API
-    const todayStr = window.utils.getJakartaDateString();
-    const todayISO = new Date().toISOString();
+    // Get today's date in YYYY-MM-DD format for API
+    const todayStr = window.utils.getJakartaDateString(); // Format: YYYY-MM-DD
 
     let historyData = [];
 
-    // Try to fetch from API if online
-    if (state.isOnline) {
-      try {
-        const apiData = await apiService.getAbsensiByAcaraId(
-          state.selectedEvent.id,
-          todayISO
-        );
-        log('API attendance data:', apiData);
-        historyData = apiData || [];
-      } catch (apiError) {
-        log('API fetch error, falling back to local data:', apiError.message);
-      }
-    }
-
-    // If no API data or offline, use local database
-    if (historyData.length === 0) {
-      const localData = await window.electronAPI.getAllAbsensi();
-      historyData = localData.filter(item =>
-        item.acara_id === state.selectedEvent.id &&
-        item.tanggal === todayStr
+    // Fetch directly from API endpoint
+    // GET /api/Absensi/GetAbsensiByAcaraId?RefId={id}&Tanggal={YYYY-MM-DD}&ApiKey={key}
+    try {
+      log('Fetching from API with RefId:', state.selectedEvent.id, 'Tanggal:', todayStr);
+      const apiData = await apiService.getAbsensiByAcaraId(
+        state.selectedEvent.id,
+        todayStr
       );
-      log('Local attendance data:', historyData.length, 'records');
+      log('API attendance data:', apiData);
+      historyData = apiData || [];
+    } catch (apiError) {
+      logError('API fetch error:', apiError.message);
+      // API failed, show error but continue
+      historyData = [];
     }
 
     // Update history count
@@ -1253,13 +1250,41 @@ async function loadAttendanceHistory() {
   }
 }
 
+// Start real-time attendance history refresh
+function startAttendanceHistoryRefresh() {
+  // Clear any existing interval
+  stopAttendanceHistoryRefresh();
+
+  log('Starting real-time attendance history refresh (every', ATTENDANCE_REFRESH_INTERVAL / 1000, 'seconds)');
+
+  // Set up periodic refresh for real-time updates
+  attendanceHistoryInterval = setInterval(() => {
+    if (state.current === AppState.SCANNING && state.selectedEvent) {
+      log('Auto-refreshing attendance history...');
+      loadAttendanceHistory(false); // Don't show loading spinner on auto-refresh
+    }
+  }, ATTENDANCE_REFRESH_INTERVAL);
+}
+
+// Stop real-time attendance history refresh
+function stopAttendanceHistoryRefresh() {
+  if (attendanceHistoryInterval) {
+    clearInterval(attendanceHistoryInterval);
+    attendanceHistoryInterval = null;
+    log('Stopped attendance history refresh');
+  }
+}
+
 function renderAttendanceHistory(data) {
   elements.historyList.innerHTML = '';
 
+  log('Rendering attendance history, data count:', data.length);
+
   // Sort by time (newest first)
+  // API response format: { id, tanggal, nama, photoUrl, refId, jumlahOrang, tipe }
   const sortedData = [...data].sort((a, b) => {
-    const timeA = new Date(a.tanggal_absen || a.tanggal || a.Tanggal || 0);
-    const timeB = new Date(b.tanggal_absen || b.tanggal || b.Tanggal || 0);
+    const timeA = new Date(a.tanggal || 0);
+    const timeB = new Date(b.tanggal || 0);
     return timeB - timeA;
   });
 
@@ -1267,11 +1292,11 @@ function renderAttendanceHistory(data) {
     const historyItem = document.createElement('div');
     historyItem.className = 'history-item';
 
-    // Get name (handle different field names from API vs local)
-    const nama = item.nama || item.Nama || 'Unknown';
+    // Get name from API response
+    const nama = item.nama || 'Unknown';
 
-    // Get time
-    const timeStr = item.tanggal_absen || item.tanggal || item.Tanggal;
+    // Get time from tanggal field (ISO format: "2026-01-07T08:16:37.98")
+    const timeStr = item.tanggal;
     let formattedTime = '';
     if (timeStr) {
       try {
@@ -1281,15 +1306,22 @@ function renderAttendanceHistory(data) {
       }
     }
 
-    // Get photo (handle base64 or URL)
-    const photoData = item.photo_data || item.photoData || item.PhotoUrl || '';
-    const hasPhoto = photoData && photoData.length > 0;
+    // Get photo URL directly from API response photoUrl field
+    // Example: "https://is3.cloudhost.id/portalub/absensi/2026-01-07/209_10_1767773798004.jpg"
+    const photoUrl = item.photoUrl || '';
+    const hasPhoto = photoUrl && photoUrl.length > 0;
+
+    log('History item:', nama, 'photoUrl:', photoUrl, 'hasPhoto:', hasPhoto);
 
     historyItem.innerHTML = `
       <div class="history-number">${sortedData.length - index}</div>
       <div class="history-avatar">
         ${hasPhoto
-          ? `<img src="${photoData.startsWith('data:') || photoData.startsWith('http') ? photoData : 'data:image/jpeg;base64,' + photoData}" alt="${escapeHtml(nama)}">`
+          ? `<img src="${photoUrl}" alt="${escapeHtml(nama)}" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="this.onerror=null; this.style.display='none'; this.parentElement.querySelector('svg').style.display='block';">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:none;">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>`
           : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
               <circle cx="12" cy="7" r="4"/>
@@ -1745,6 +1777,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Memory management - clean up on unload
 window.addEventListener('beforeunload', () => {
   stopCamera();
+  stopAttendanceHistoryRefresh();
   clearInterval(validationTimerInterval);
   clearInterval(successTimerInterval);
 });
