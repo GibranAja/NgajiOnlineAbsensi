@@ -6,7 +6,8 @@
   "scripts": {
     "start": "electron .",
     "build:win": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64",
-    "build:raspi": "electron-builder --linux --arm64",
+    "build:raspi": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --linux deb --arm64",
+    "build:raspi-dir": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --linux dir --arm64",
     "build:all": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64 --linux --arm64",
     "postinstall": "electron-builder install-app-deps",
     "generate-icons": "node generate-icons.js"
