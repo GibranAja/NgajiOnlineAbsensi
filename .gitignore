@@ -4,9 +4,8 @@ package-lock.json
 yarn.lock
 
 # Build outputs
-dist/
-build/
 out/
+dist/
 release/
 *.exe
 *.dmg
