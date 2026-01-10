@@ -75,6 +75,9 @@ const elements = {
   noSearchResults: null,
   btnClearSearchResults: null,
 
+  // No Photo Option
+  noPhotoCheckbox: null,
+
   // Scan Screen
   barcodeInput: null,
   scanError: null,
@@ -568,6 +571,24 @@ function startValidationTimer() {
 }
 
 async function goToPhotoCapture() {
+  // Check if "Tanpa Photo" checkbox is checked
+  const skipPhoto = elements.noPhotoCheckbox && elements.noPhotoCheckbox.checked;
+
+  if (skipPhoto) {
+    // Skip photo capture, use default profile image
+    state.capturedPhoto = '/img/undraw_profile.svg';
+    log('Skipping photo capture - using default profile image');
+    try {
+      await submitAbsensi();
+      goToSuccess();
+    } catch (error) {
+      console.error('Submit error:', error);
+      showToast('Gagal menyimpan ke server, disimpan lokal', 'error');
+      goToSuccess();
+    }
+    return;
+  }
+
   state.current = AppState.PHOTO_CAPTURE;
 
   elements.photoUserName.textContent = state.scannedUser.Nama;
@@ -662,28 +683,36 @@ async function submitAbsensi() {
   let photoUrl = '';
 
   if (state.capturedPhoto) {
-    photoBase64 = state.capturedPhoto.replace(/^data:image\/\w+;base64,/, '');
+    // Check if it's a default profile URL (no photo taken)
+    if (state.capturedPhoto.startsWith('/img/') || state.capturedPhoto.startsWith('http')) {
+      // Use the URL directly without base64 processing
+      photoUrl = state.capturedPhoto;
+      log('Using default profile image URL:', photoUrl);
+    } else {
+      // It's base64 data from camera capture
+      photoBase64 = state.capturedPhoto.replace(/^data:image\/\w+;base64,/, '');
 
-    // Upload photo to S3 first if online
-    if (state.isOnline) {
-      log('Uploading photo to S3...');
-      try {
-        const uploadResult = await window.electronAPI.uploadPhotoToS3(
-          photoBase64,
-          state.scannedUser.Id,
-          state.selectedEvent.id
-        );
+      // Upload photo to S3 first if online
+      if (state.isOnline) {
+        log('Uploading photo to S3...');
+        try {
+          const uploadResult = await window.electronAPI.uploadPhotoToS3(
+            photoBase64,
+            state.scannedUser.Id,
+            state.selectedEvent.id
+          );
 
-        if (uploadResult.success && uploadResult.url) {
-          photoUrl = uploadResult.url;
-          log('Photo uploaded to S3:', photoUrl);
-        } else {
-          log('S3 upload failed:', uploadResult.error);
+          if (uploadResult.success && uploadResult.url) {
+            photoUrl = uploadResult.url;
+            log('Photo uploaded to S3:', photoUrl);
+          } else {
+            log('S3 upload failed:', uploadResult.error);
+            // Continue with base64 as fallback
+          }
+        } catch (uploadError) {
+          logError('S3 upload error:', uploadError);
           // Continue with base64 as fallback
         }
-      } catch (uploadError) {
-        logError('S3 upload error:', uploadError);
-        // Continue with base64 as fallback
       }
     }
   }
@@ -1571,6 +1600,7 @@ function initElements() {
   elements.btnClearSearchResults = document.getElementById('btnClearSearchResults');
 
   elements.barcodeInput = document.getElementById('barcodeInput');
+  elements.noPhotoCheckbox = document.getElementById('noPhotoCheckbox');
   elements.scanError = document.getElementById('scanError');
   elements.scanErrorText = document.getElementById('scanErrorText');
   elements.selectedEventName = document.getElementById('selectedEventName');
