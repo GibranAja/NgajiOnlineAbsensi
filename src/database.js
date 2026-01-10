@@ -1,12 +1,13 @@
 /**
  * Database Layer - SQLite Local File
  * Uses sql.js (pure JavaScript SQLite implementation)
- * Database file: database/database.db
+ * Database file stored in userData folder (writable location)
  */
 
 const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
+const { app } = require('electron');
 
 class AbsensiDatabase {
   constructor() {
@@ -24,9 +25,10 @@ class AbsensiDatabase {
       console.log('[DB] Initializing SQLite...');
       this.SQL = await initSqlJs();
 
-      // Database file path - relative to app root
-      const appPath = path.join(__dirname, '..');
-      const dbFolder = path.join(appPath, 'database');
+      // Database file path - use userData folder (writable location)
+      // This ensures database works even when app is packaged as asar
+      const userDataPath = app.getPath('userData');
+      const dbFolder = path.join(userDataPath, 'database');
       this.dbPath = path.join(dbFolder, 'database.db');
 
       console.log('[DB] Database path:', this.dbPath);
