@@ -886,6 +886,64 @@ h1, h2, h3, h4 {
   margin-bottom: 16px;
 }
 
+/* No Photo Checkbox Option */
+.no-photo-option {
+  margin: 12px 0;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background-color: rgba(255, 255, 255, 0.5);
+  transition: background-color 0.2s;
+}
+
+.checkbox-container:hover {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+.checkbox-container input[type="checkbox"] {
+  display: none;
+}
+
+.checkmark {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--color-interaction);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  background-color: white;
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkmark {
+  background-color: var(--color-interaction);
+  border-color: var(--color-interaction);
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkmark::after {
+  content: '';
+  width: 6px;
+  height: 12px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 3px;
+}
+
+.checkbox-label {
+  font-size: 0.95rem;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
 /* Barcode input wrapper - visible for debugging, hidden in production */
 .barcode-input-wrapper {
   width: 100%;
