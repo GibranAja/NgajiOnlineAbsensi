@@ -138,6 +138,7 @@ const elements = {
   appVersion: null,
   appPlatform: null,
   dbStats: null,
+  toggleAutostart: null,
   btnExitApp: null,
 
   // Toast
@@ -1656,6 +1657,7 @@ function initElements() {
   elements.appPlatform = document.getElementById('appPlatform');
   elements.dbStats = document.getElementById('dbStats');
   elements.btnExitApp = document.getElementById('btnExitApp');
+  elements.toggleAutostart = document.getElementById('toggleAutostart');
 
   elements.toastContainer = document.getElementById('toastContainer');
 }
@@ -1673,6 +1675,12 @@ function initEventListeners() {
       const allData = await window.electronAPI.getAllAbsensi();
       const unsyncedData = await window.electronAPI.getUnsyncedAbsensi();
       elements.dbStats.textContent = `${allData.length} total, ${unsyncedData.length} belum sinkron`;
+
+      // Load autostart status
+      const autostartStatus = await window.electronAPI.getAutostart();
+      if (autostartStatus.success) {
+        elements.toggleAutostart.checked = autostartStatus.enabled;
+      }
     } catch (error) {
       console.error('Get app info error:', error);
     }
@@ -1722,6 +1730,26 @@ function initEventListeners() {
   });
   elements.btnCloseSync.addEventListener('click', () => hideModal('modalSync'));
   elements.btnCloseSettings.addEventListener('click', () => hideModal('modalSettings'));
+
+  // Autostart toggle
+  elements.toggleAutostart.addEventListener('change', async (e) => {
+    const enabled = e.target.checked;
+    try {
+      const result = await window.electronAPI.setAutostart(enabled);
+      if (result.success) {
+        showToast(enabled ? 'Aplikasi akan berjalan saat startup' : 'Autostart dinonaktifkan', 'success');
+        log('Autostart set to:', result.enabled);
+      } else {
+        showToast('Gagal mengubah pengaturan autostart', 'error');
+        // Revert toggle if failed
+        e.target.checked = !enabled;
+      }
+    } catch (error) {
+      logError('Autostart toggle error:', error);
+      showToast('Gagal mengubah pengaturan autostart', 'error');
+      e.target.checked = !enabled;
+    }
+  });
 
   // Sync
   elements.btnStartSync.addEventListener('click', startSync);

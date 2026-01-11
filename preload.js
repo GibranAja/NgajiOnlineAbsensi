@@ -28,7 +28,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   quit: () => ipcRenderer.invoke('app:quit'),
   minimize: () => ipcRenderer.invoke('app:minimize'),
   toggleFullscreen: () => ipcRenderer.invoke('app:toggleFullscreen'),
-  getAppInfo: () => ipcRenderer.invoke('app:getInfo')
+  getAppInfo: () => ipcRenderer.invoke('app:getInfo'),
+
+  // Autostart control
+  getAutostart: () => ipcRenderer.invoke('app:getAutostart'),
+  setAutostart: (enabled) => ipcRenderer.invoke('app:setAutostart', enabled)
 });
 
 // Expose utility functions

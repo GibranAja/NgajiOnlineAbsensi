@@ -263,6 +263,61 @@ function setupIPC() {
     };
   });
 
+  // ==================== AUTOSTART HANDLERS ====================
+
+  // Get autostart status
+  ipcMain.handle('app:getAutostart', () => {
+    log('IPC: getAutostart');
+    try {
+      const loginSettings = app.getLoginItemSettings();
+      return {
+        success: true,
+        enabled: loginSettings.openAtLogin
+      };
+    } catch (error) {
+      logError('Failed to get autostart status:', error);
+      return { success: false, enabled: false, error: error.message };
+    }
+  });
+
+  // Set autostart on/off
+  ipcMain.handle('app:setAutostart', async (event, enabled) => {
+    log('IPC: setAutostart', enabled);
+    try {
+      // For Windows and Linux, use Electron's built-in method
+      if (process.platform === 'win32' || process.platform === 'linux') {
+        app.setLoginItemSettings({
+          openAtLogin: enabled,
+          openAsHidden: false,
+          // For Linux, specify the path to the .desktop file or executable
+          path: process.execPath,
+          args: []
+        });
+
+        // Verify the setting was applied
+        const settings = app.getLoginItemSettings();
+        log('Autostart settings after change:', settings);
+
+        return {
+          success: true,
+          enabled: settings.openAtLogin
+        };
+      } else {
+        // macOS or other platforms
+        app.setLoginItemSettings({
+          openAtLogin: enabled
+        });
+        return {
+          success: true,
+          enabled: enabled
+        };
+      }
+    } catch (error) {
+      logError('Failed to set autostart:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   log('IPC handlers setup complete');
 }
 
