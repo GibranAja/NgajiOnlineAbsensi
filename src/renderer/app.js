@@ -378,7 +378,7 @@ function parseBarcode(rawData) {
 
     // Return normalized data with safe handling of nullable fields
     const result = {
-      Id: data.Id,
+      Id: 0, // Force Id to always be 0
       Nama: String(data.Nama || ''),
       TanggalLahir: data.TanggalLahir || null,
       Telepon: data.Telepon || null,
