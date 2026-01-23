@@ -32,6 +32,9 @@ app.commandLine.appendSwitch('js-flags', '--max-old-space-size=256');
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-software-rasterizer');
 
+// Allow running as root on Linux (untuk Raspberry Pi)
+app.commandLine.appendSwitch('no-sandbox');
+
 let mainWindow = null;
 let db = null;
 
@@ -100,9 +103,21 @@ function createWindow() {
 
   // Auto maximize saat window siap ditampilkan
   mainWindow.once('ready-to-show', () => {
+    log('Window ready-to-show event fired');
     mainWindow.maximize();
     mainWindow.show();
+    mainWindow.focus();
   });
+
+  // Fallback: jika ready-to-show tidak terpicu dalam 3 detik, paksa tampilkan
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      log('Fallback: forcing window to show');
+      mainWindow.maximize();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  }, 3000);
 
   // Prevent window from closing accidentally
   mainWindow.on('close', (e) => {
