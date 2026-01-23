@@ -4,7 +4,7 @@
  * Optimized for Raspberry Pi 4 (Low Resource)
  */
 
-const { app, BrowserWindow, ipcMain, session } = require('electron');
+const { app, BrowserWindow, ipcMain, session, Menu } = require('electron');
 const path = require('path');
 
 // Database will be initialized after app is ready
@@ -51,13 +51,17 @@ app.on('second-instance', () => {
 function createWindow() {
   log('Creating main window...');
 
+  // Hilangkan menu bar (File, Help, dll)
+  Menu.setApplicationMenu(null);
+
   mainWindow = new BrowserWindow({
     width: 1024,
     height: 600,
-    fullscreen: false,  // Disable for debugging
-    kiosk: false,       // Disable for debugging
-    autoHideMenuBar: false,
-    frame: true,        // Enable for debugging
+    fullscreen: false,
+    kiosk: false,
+    autoHideMenuBar: true,
+    frame: false,  // Hilangkan title bar (close, minimize, restore)
+    show: false,   // Jangan tampilkan dulu sampai maximize
     backgroundColor: '#FFF8F0',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -93,6 +97,12 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'index.html'));
   log('Window loaded');
+
+  // Auto maximize saat window siap ditampilkan
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.maximize();
+    mainWindow.show();
+  });
 
   // Prevent window from closing accidentally
   mainWindow.on('close', (e) => {
