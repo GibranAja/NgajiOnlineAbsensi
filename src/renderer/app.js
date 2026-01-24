@@ -418,11 +418,11 @@ function hideScanError() {
   elements.scanError.style.display = 'none';
 }
 
-// ==================== SWIPER (Custom Implementation) ====================
+// ==================== SWIPER (Dot & Button Navigation) ====================
 function initSwiper() {
-  log('Initializing swiper...');
-  updateSwiperButtons();
+  log('Initializing swiper with dot and button navigation...');
 
+  // Previous button
   elements.swiperPrev.addEventListener('click', () => {
     if (state.swiperIndex > 0) {
       state.swiperIndex--;
@@ -430,6 +430,7 @@ function initSwiper() {
     }
   });
 
+  // Next button
   elements.swiperNext.addEventListener('click', () => {
     const maxIndex = Math.max(0, state.events.length - 1);
     if (state.swiperIndex < maxIndex) {
@@ -440,11 +441,10 @@ function initSwiper() {
 }
 
 function updateSwiper() {
-  const wrapper = elements.eventList;
-  const slideWidth = 304; // 280px + 24px gap
-  const offset = -(state.swiperIndex * slideWidth);
-  wrapper.style.transform = `translateX(${offset}px)`;
-
+  const slides = elements.eventList.querySelectorAll('.swiper-slide');
+  slides.forEach((slide, index) => {
+    slide.classList.toggle('active', index === state.swiperIndex);
+  });
   updateSwiperButtons();
   updateSwiperDots();
 }
@@ -984,8 +984,8 @@ function renderTodayEvents(events) {
 
   events.forEach((event, index) => {
     const slide = document.createElement('div');
-    slide.className = 'swiper-slide today-event';
-    slide.style.animationDelay = `${index * 0.1}s`;
+    // Tambah class 'active' untuk slide pertama (sesuai swiperIndex)
+    slide.className = `swiper-slide today-event${index === state.swiperIndex ? ' active' : ''}`;
     slide.innerHTML = `
       <h3 class="event-card-title">${escapeHtml(event.nama || 'Acara')}</h3>
       <p class="event-card-desc">${escapeHtml(event.keterangan || '')}</p>
