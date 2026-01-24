@@ -48,8 +48,7 @@
       ],
       "signAndEditExecutable": false,
       "icon": "icons/icon.ico",
-      "artifactName": "${productName}-Setup-${version}.exe",
-      "publisherName": "Iban dan Rasyad"
+      "artifactName": "${productName}-Setup-${version}.exe"
     },
     "nsis": {
       "oneClick": false,
