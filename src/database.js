@@ -273,6 +273,22 @@ class AbsensiDatabase {
   }
 
   /**
+   * Clear all absensi records from local database
+   * Does NOT affect the main server database
+   */
+  clearAllAbsensi() {
+    try {
+      this.db.run(`DELETE FROM absensi`);
+      this.save();
+      console.log('[DB] All local absensi data cleared');
+      return { success: true, message: 'Semua data lokal berhasil dihapus' };
+    } catch (error) {
+      console.error('[DB] Clear all error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Get absensi count by date
    */
   getAbsensiCountByDate(tanggal) {

@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('db:checkAlreadyAbsen', { personId, acaraId, tanggal }),
   getAllAbsensi: () => ipcRenderer.invoke('db:getAllAbsensi'),
   deleteAbsensi: (id) => ipcRenderer.invoke('db:deleteAbsensi', id),
+  clearAllAbsensi: () => ipcRenderer.invoke('db:clearAllAbsensi'),
 
   // S3 Storage operations
   uploadPhotoToS3: (base64Data, personId, acaraId) =>

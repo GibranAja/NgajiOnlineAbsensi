@@ -115,6 +115,7 @@ const elements = {
 
   // Success Screen
   successPhoto: null,
+  successAvatarFallback: null,
   successName: null,
   successEvent: null,
   successTime: null,
@@ -133,6 +134,10 @@ const elements = {
   syncProgressText: null,
   unsyncedList: null,
   btnStartSync: null,
+  btnClearLocalData: null,
+  modalConfirmDelete: null,
+  btnCancelDelete: null,
+  btnConfirmDelete: null,
   modalSettings: null,
   btnCloseSettings: null,
   appVersion: null,
@@ -315,11 +320,12 @@ async function processBarcode() {
     log('Parsed user data:', userData);
 
     // Check if already attended today for this event
+    // Use OriginalId for local SQLite check (unique person identification)
     const todayStr = window.utils.getJakartaDateString();
     log('Checking attendance for date:', todayStr);
 
     const alreadyAttended = await window.electronAPI.checkAlreadyAbsen(
-      userData.Id,
+      userData.OriginalId, // Use OriginalId for local database check
       state.selectedEvent.id,
       todayStr
     );
@@ -377,8 +383,11 @@ function parseBarcode(rawData) {
     }
 
     // Return normalized data with safe handling of nullable fields
+    // Id = 0 for server API (auto increment)
+    // OriginalId = actual Id from QR for local SQLite identification
     const result = {
-      Id: 0, // Force Id to always be 0
+      Id: 0, // Force Id to always be 0 for server API
+      OriginalId: data.Id, // Keep original Id for local database identification
       Nama: String(data.Nama || ''),
       TanggalLahir: data.TanggalLahir || null,
       Telepon: data.Telepon || null,
@@ -576,9 +585,9 @@ async function goToPhotoCapture() {
   const skipPhoto = elements.noPhotoCheckbox && elements.noPhotoCheckbox.checked;
 
   if (skipPhoto) {
-    // Skip photo capture, use default profile image
-    state.capturedPhoto = '/img/undraw_profile.svg';
-    log('Skipping photo capture - using default profile image');
+    // Skip photo capture, no photo will be used
+    state.capturedPhoto = null;
+    log('Skipping photo capture - will use default SVG');
     try {
       await submitAbsensi();
       goToSuccess();
@@ -679,47 +688,49 @@ async function submitAbsensi() {
   // Get Jakarta timestamp for tanggal_absen
   const jakartaTimestamp = window.utils.getJakartaTimestamp();
 
+  // Default photo URL for attendance without photo
+  const DEFAULT_PHOTO_URL = 'https://i.pinimg.com/736x/98/e8/cb/98e8cbbfafddf950128b90f129348d66.jpg';
+
   // Prepare photo data (remove data URL prefix)
   let photoBase64 = '';
   let photoUrl = '';
 
-  if (state.capturedPhoto) {
-    // Check if it's a default profile URL (no photo taken)
-    if (state.capturedPhoto.startsWith('/img/') || state.capturedPhoto.startsWith('http')) {
-      // Use the URL directly without base64 processing
-      photoUrl = state.capturedPhoto;
-      log('Using default profile image URL:', photoUrl);
-    } else {
-      // It's base64 data from camera capture
-      photoBase64 = state.capturedPhoto.replace(/^data:image\/\w+;base64,/, '');
+  if (state.capturedPhoto && state.capturedPhoto.startsWith('data:')) {
+    // It's base64 data from camera capture
+    photoBase64 = state.capturedPhoto.replace(/^data:image\/\w+;base64,/, '');
 
-      // Upload photo to S3 first if online
-      if (state.isOnline) {
-        log('Uploading photo to S3...');
-        try {
-          const uploadResult = await window.electronAPI.uploadPhotoToS3(
-            photoBase64,
-            state.scannedUser.Id,
-            state.selectedEvent.id
-          );
+    // Upload photo to S3 first if online
+    if (state.isOnline) {
+      log('Uploading photo to S3...');
+      try {
+        const uploadResult = await window.electronAPI.uploadPhotoToS3(
+          photoBase64,
+          state.scannedUser.Id,
+          state.selectedEvent.id
+        );
 
-          if (uploadResult.success && uploadResult.url) {
-            photoUrl = uploadResult.url;
-            log('Photo uploaded to S3:', photoUrl);
-          } else {
-            log('S3 upload failed:', uploadResult.error);
-            // Continue with base64 as fallback
-          }
-        } catch (uploadError) {
-          logError('S3 upload error:', uploadError);
+        if (uploadResult.success && uploadResult.url) {
+          photoUrl = uploadResult.url;
+          log('Photo uploaded to S3:', photoUrl);
+        } else {
+          log('S3 upload failed:', uploadResult.error);
           // Continue with base64 as fallback
         }
+      } catch (uploadError) {
+        logError('S3 upload error:', uploadError);
+        // Continue with base64 as fallback
       }
     }
+  } else {
+    // No photo captured - use default photo URL
+    photoUrl = DEFAULT_PHOTO_URL;
+    log('No photo captured, using default photo URL:', photoUrl);
   }
 
+  // For local SQLite: use OriginalId for unique person identification
+  // For server API: use Id (which is 0, server will auto increment)
   const absensiData = {
-    personId: state.scannedUser.Id,
+    personId: state.scannedUser.OriginalId, // Use OriginalId for local database
     acaraId: state.selectedEvent.id,
     nama: state.scannedUser.Nama,
     tanggalLahir: state.scannedUser.TanggalLahir,
@@ -738,11 +749,12 @@ async function submitAbsensi() {
   if (state.isOnline) {
     try {
       // Use different API endpoint based on whether we have S3 URL or not
+      // For server API: use Id (which is 0, server will auto increment)
       if (photoUrl) {
         // Photo already uploaded to S3, use URL endpoint
         log('Submitting absensi with S3 URL...');
         await apiService.inputAbsenWithImageUrl({
-          personId: state.scannedUser.Id,
+          personId: state.scannedUser.Id, // Use Id=0 for server API
           acaraId: state.selectedEvent.id,
           nama: state.scannedUser.Nama,
           posisi: state.scannedUser.Posisi,
@@ -753,7 +765,7 @@ async function submitAbsensi() {
         // No S3 URL, fallback to base64 upload
         log('Submitting absensi with base64 data...');
         await apiService.inputAbsenWithImageBytes({
-          personId: state.scannedUser.Id,
+          personId: state.scannedUser.Id, // Use Id=0 for server API
           acaraId: state.selectedEvent.id,
           nama: state.scannedUser.Nama,
           posisi: state.scannedUser.Posisi,
@@ -769,7 +781,7 @@ async function submitAbsensi() {
     }
   }
 
-  // Always save to local database
+  // Always save to local database (with OriginalId as personId)
   absensiData.synced = synced;
   await window.electronAPI.saveAbsensi(absensiData);
 
@@ -786,12 +798,21 @@ function goToSuccess() {
   // Add to attendance history panel
   addToAttendanceHistory(state.scannedUser);
 
-  // Display success info
-  if (state.capturedPhoto) {
+  // Display success info with fallback SVG support
+  if (state.capturedPhoto && !state.capturedPhoto.includes('DEFAULT_SVG')) {
     elements.successPhoto.src = state.capturedPhoto;
     elements.successPhoto.style.display = 'block';
+    elements.successAvatarFallback.style.display = 'none';
+    // Add error handler for fallback - show SVG on error
+    elements.successPhoto.onerror = function() {
+      this.onerror = null;
+      this.style.display = 'none';
+      elements.successAvatarFallback.style.display = 'flex';
+    };
   } else {
+    // Use default SVG when no photo
     elements.successPhoto.style.display = 'none';
+    elements.successAvatarFallback.style.display = 'flex';
   }
 
   elements.successName.textContent = state.scannedUser.Nama;
@@ -1201,6 +1222,37 @@ async function startSync() {
   }
 }
 
+// Clear all local absensi data
+async function clearLocalData() {
+  elements.btnConfirmDelete.disabled = true;
+  elements.btnCancelDelete.disabled = true;
+
+  try {
+    log('Clearing all local absensi data...');
+    const result = await window.electronAPI.clearAllAbsensi();
+
+    if (result.success) {
+      showToast('Data lokal berhasil dihapus', 'success');
+      log('Local data cleared successfully');
+    } else {
+      showToast('Gagal menghapus data lokal', 'error');
+    }
+
+    // Refresh sync data display
+    await loadSyncData();
+
+    // Hide confirmation modal
+    hideModal('modalConfirmDelete');
+
+  } catch (error) {
+    console.error('Clear local data error:', error);
+    showToast('Gagal menghapus data lokal', 'error');
+  } finally {
+    elements.btnConfirmDelete.disabled = false;
+    elements.btnCancelDelete.disabled = false;
+  }
+}
+
 // ==================== STATS UPDATE ====================
 async function updateStats() {
   try {
@@ -1310,12 +1362,12 @@ function renderAttendanceHistory(data) {
 
   log('Rendering attendance history, data count:', data.length);
 
-  // Sort by time (newest first)
+  // Sort by time (oldest first - chronological order)
   // API response format: { id, tanggal, nama, photoUrl, refId, jumlahOrang, tipe }
   const sortedData = [...data].sort((a, b) => {
     const timeA = new Date(a.tanggal || 0);
     const timeB = new Date(b.tanggal || 0);
-    return timeB - timeA;
+    return timeA - timeB; // Ascending: oldest first
   });
 
   sortedData.forEach((item, index) => {
@@ -1344,18 +1396,12 @@ function renderAttendanceHistory(data) {
     log('History item:', nama, 'photoUrl:', photoUrl, 'hasPhoto:', hasPhoto);
 
     historyItem.innerHTML = `
-      <div class="history-number">${sortedData.length - index}</div>
+      <div class="history-number">${index + 1}</div>
       <div class="history-avatar">
         ${hasPhoto
-          ? `<img src="${photoUrl}" alt="${escapeHtml(nama)}" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="this.onerror=null; this.style.display='none'; this.parentElement.querySelector('svg').style.display='block';">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:none;">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>`
-          : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>`
+          ? `<img src="${photoUrl}" alt="${escapeHtml(nama)}" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+             <div class="avatar-fallback" style="display:none;">${DEFAULT_USER_SVG}</div>`
+          : DEFAULT_USER_SVG
         }
       </div>
       <div class="history-info">
@@ -1383,21 +1429,24 @@ function addToAttendanceHistory(userData) {
 
   // Get current count and increment
   const currentCount = parseInt(elements.historyCount.textContent) || 0;
-  elements.historyCount.textContent = currentCount + 1;
+  const newCount = currentCount + 1;
+  elements.historyCount.textContent = newCount;
 
   // Hide empty message if showing
   elements.historyEmpty.style.display = 'none';
 
+  // Default photo URL for attendance without photo
+  const DEFAULT_PHOTO_URL = 'https://i.pinimg.com/736x/98/e8/cb/98e8cbbfafddf950128b90f129348d66.jpg';
+
+  // Determine photo source
+  const hasCustomPhoto = state.capturedPhoto && !state.capturedPhoto.includes('DEFAULT_SVG');
+  const photoSrc = hasCustomPhoto ? state.capturedPhoto : DEFAULT_PHOTO_URL;
+
   historyItem.innerHTML = `
-    <div class="history-number">${currentCount + 1}</div>
+    <div class="history-number">${newCount}</div>
     <div class="history-avatar">
-      ${state.capturedPhoto
-        ? `<img src="${state.capturedPhoto}" alt="${escapeHtml(userData.Nama)}">`
-        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>`
-      }
+      <img src="${photoSrc}" alt="${escapeHtml(userData.Nama)}" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <div class="avatar-fallback" style="display:none;">${DEFAULT_USER_SVG}</div>
     </div>
     <div class="history-info">
       <p class="history-name">${escapeHtml(userData.Nama)}</p>
@@ -1405,22 +1454,13 @@ function addToAttendanceHistory(userData) {
     </div>
   `;
 
-  // Insert at the top
-  elements.historyList.insertBefore(historyItem, elements.historyList.firstChild);
+  // Append at the end (chronological order - newest at bottom with highest number)
+  elements.historyList.appendChild(historyItem);
 
   // Remove new class after animation
   setTimeout(() => {
     historyItem.classList.remove('history-item-new');
   }, 500);
-
-  // Re-number all items
-  const items = elements.historyList.querySelectorAll('.history-item');
-  items.forEach((item, index) => {
-    const numberEl = item.querySelector('.history-number');
-    if (numberEl) {
-      numberEl.textContent = items.length - index;
-    }
-  });
 }
 
 // ==================== CONNECTION CHECK ====================
@@ -1634,6 +1674,7 @@ function initElements() {
   elements.btnConfirmPhoto = document.getElementById('btnConfirmPhoto');
 
   elements.successPhoto = document.getElementById('successPhoto');
+  elements.successAvatarFallback = document.getElementById('successAvatarFallback');
   elements.successName = document.getElementById('successName');
   elements.successEvent = document.getElementById('successEvent');
   elements.successTime = document.getElementById('successTime');
@@ -1651,6 +1692,10 @@ function initElements() {
   elements.syncProgressText = document.getElementById('syncProgressText');
   elements.unsyncedList = document.getElementById('unsyncedList');
   elements.btnStartSync = document.getElementById('btnStartSync');
+  elements.btnClearLocalData = document.getElementById('btnClearLocalData');
+  elements.modalConfirmDelete = document.getElementById('modalConfirmDelete');
+  elements.btnCancelDelete = document.getElementById('btnCancelDelete');
+  elements.btnConfirmDelete = document.getElementById('btnConfirmDelete');
   elements.modalSettings = document.getElementById('modalSettings');
   elements.btnCloseSettings = document.getElementById('btnCloseSettings');
   elements.appVersion = document.getElementById('appVersion');
@@ -1754,6 +1799,19 @@ function initEventListeners() {
   // Sync
   elements.btnStartSync.addEventListener('click', startSync);
 
+  // Clear local data
+  elements.btnClearLocalData.addEventListener('click', () => {
+    showModal('modalConfirmDelete');
+  });
+
+  elements.btnCancelDelete.addEventListener('click', () => {
+    hideModal('modalConfirmDelete');
+  });
+
+  elements.btnConfirmDelete.addEventListener('click', async () => {
+    await clearLocalData();
+  });
+
   // Exit app
   elements.btnExitApp.addEventListener('click', () => {
     if (confirm('Yakin ingin keluar dari aplikasi?')) {
@@ -1786,6 +1844,12 @@ function initEventListeners() {
   });
 }
 
+// Default fallback SVG for users without photo (inline SVG)
+const DEFAULT_USER_SVG = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+  <circle cx="12" cy="7" r="4"/>
+</svg>`;
+
 async function init() {
   log('========================================');
   log('Initializing Ngajiku application...');
@@ -1803,6 +1867,12 @@ async function init() {
 
     log('Step 4: Init barcode scanner...');
     initBarcodeScanner();
+
+    // Set "Tanpa Photo" checkbox to checked by default
+    if (elements.noPhotoCheckbox) {
+      elements.noPhotoCheckbox.checked = true;
+      log('Set noPhotoCheckbox default to checked');
+    }
 
     // Update clock every second
     log('Step 5: Starting clock...');

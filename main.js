@@ -226,6 +226,16 @@ function setupIPC() {
     }
   });
 
+  ipcMain.handle('db:clearAllAbsensi', () => {
+    log('IPC: clearAllAbsensi');
+    try {
+      return db.clearAllAbsensi();
+    } catch (error) {
+      logError('Error clearing all absensi:', error);
+      throw error;
+    }
+  });
+
   // S3 Storage operations
   ipcMain.handle('s3:uploadPhoto', async (event, { base64Data, personId, acaraId }) => {
     log('IPC: s3:uploadPhoto for person:', personId, 'acara:', acaraId);
