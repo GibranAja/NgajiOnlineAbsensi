@@ -55,6 +55,7 @@ const elements = {
   connectionStatus: null,
   btnSync: null,
   btnSettings: null,
+  btnResizeWindow: null,
 
   // Event Selection
   eventList: null,
@@ -1621,6 +1622,7 @@ function initElements() {
   elements.connectionStatus = document.getElementById('connectionStatus');
   elements.btnSync = document.getElementById('btnSync');
   elements.btnSettings = document.getElementById('btnSettings');
+  elements.btnResizeWindow = document.getElementById('btnResizeWindow');
 
   elements.eventList = document.getElementById('eventList');
   elements.eventSwiper = document.getElementById('eventSwiper');
@@ -1710,6 +1712,27 @@ function initElements() {
 function initEventListeners() {
   // Header buttons
   elements.btnSync.addEventListener('click', openSyncModal);
+
+  // Resize window toggle button
+  let isResizedTo1024 = false;
+  elements.btnResizeWindow.addEventListener('click', async () => {
+    try {
+      if (isResizedTo1024) {
+        await window.electronAPI.maximizeWindow();
+        elements.btnResizeWindow.classList.remove('active');
+        elements.btnResizeWindow.title = 'Mode 1024x600';
+        isResizedTo1024 = false;
+      } else {
+        await window.electronAPI.resizeTo1024();
+        elements.btnResizeWindow.classList.add('active');
+        elements.btnResizeWindow.title = 'Maximize Window';
+        isResizedTo1024 = true;
+      }
+    } catch (error) {
+      console.error('Resize window error:', error);
+    }
+  });
+
   elements.btnSettings.addEventListener('click', async () => {
     showModal('modalSettings');
     try {

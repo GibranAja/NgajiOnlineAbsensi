@@ -288,6 +288,22 @@ function setupIPC() {
     }
   });
 
+  ipcMain.handle('app:resizeTo1024', () => {
+    log('IPC: resizeTo1024x600');
+    if (mainWindow) {
+      mainWindow.unmaximize();
+      mainWindow.setSize(1024, 600);
+      mainWindow.center();
+    }
+  });
+
+  ipcMain.handle('app:maximizeWindow', () => {
+    log('IPC: maximizeWindow');
+    if (mainWindow) {
+      mainWindow.maximize();
+    }
+  });
+
   // Get app info
   ipcMain.handle('app:getInfo', () => {
     log('IPC: getInfo');
