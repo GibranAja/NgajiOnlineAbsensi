@@ -4,6 +4,7 @@
  */
 
 const { contextBridge, ipcRenderer } = require('electron');
+const { getJakartaDateTime } = require('./src/Helpers/datetimeHelper');
 
 // Expose protected methods that allow the renderer process to use
 // ipcRenderer without exposing the entire object
@@ -60,16 +61,23 @@ contextBridge.exposeInMainWorld('utils', {
   getJakartaDateString: () => {
     const now = new Date();
     const options = { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' };
-    const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(now);
+    const parts = new Intl.DateTimeFormat('en-ID', options).formatToParts(now);
     const year = parts.find(p => p.type === 'year').value;
     const month = parts.find(p => p.type === 'month').value;
     const day = parts.find(p => p.type === 'day').value;
     return `${year}-${month}-${day}`;
   },
 
+  // Get date string YYYY-MM-DD in Jakarta timezone (from helper)
+  getJakartaDateTime: () => {
+    return getJakartaDateTime();
+  },
+
   // Get full timestamp in Jakarta timezone (ISO format with Jakarta time)
   getJakartaTimestamp: () => {
     const now = new Date();
+    
+    // Get Jakarta time components
     const options = {
       timeZone: 'Asia/Jakarta',
       year: 'numeric',
@@ -78,16 +86,23 @@ contextBridge.exposeInMainWorld('utils', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      fractionalSecondDigits: 3,
       hour12: false
     };
-    const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(now);
+    
+    const parts = new Intl.DateTimeFormat('en-ID', options).formatToParts(now);
     const year = parts.find(p => p.type === 'year').value;
     const month = parts.find(p => p.type === 'month').value;
     const day = parts.find(p => p.type === 'day').value;
     const hour = parts.find(p => p.type === 'hour').value;
     const minute = parts.find(p => p.type === 'minute').value;
     const second = parts.find(p => p.type === 'second').value;
-    return `${year}-${month}-${day}T${hour}:${minute}:${second}+07:00`;
+    
+    // Get milliseconds from current time
+    const ms = now.getMilliseconds().toString().padStart(3, '0');
+    
+    // Return ISO format with Jakarta timezone offset
+    return `${year}-${month}-${day}T${hour}:${minute}:${second}.${ms}`;
   }
 });
 

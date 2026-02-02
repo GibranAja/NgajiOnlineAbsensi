@@ -322,7 +322,7 @@ async function processBarcode() {
 
     // Check if already attended today for this event
     // Use OriginalId for local SQLite check (unique person identification)
-    const todayStr = window.utils.getJakartaDateString();
+    const todayStr = window.utils.getJakartaDateTime();
     log('Checking attendance for date:', todayStr);
 
     const alreadyAttended = await window.electronAPI.checkAlreadyAbsen(
@@ -336,6 +336,25 @@ async function processBarcode() {
     if (alreadyAttended) {
       log('User already attended, showing modal');
       showModal('modalAlreadyAttended');
+
+      // Start countdown for auto-close
+      let countdown = 3;
+      const countdownEl = document.getElementById('alreadyAttendedCountdown');
+      if (countdownEl) countdownEl.textContent = countdown;
+
+      const countdownInterval = setInterval(() => {
+        countdown--;
+        if (countdownEl) countdownEl.textContent = countdown;
+
+        if (countdown <= 0) {
+          clearInterval(countdownInterval);
+          hideModal('modalAlreadyAttended');
+          if (elements.barcodeInput) {
+            elements.barcodeInput.focus();
+          }
+        }
+      }, 1000);
+
       return;
     }
 
@@ -523,7 +542,7 @@ function goToScan() {
   state.current = AppState.SCANNING;
 
   elements.selectedEventName.textContent = state.selectedEvent.nama || state.selectedEvent.name || 'Acara';
-  elements.selectedEventDate.textContent = window.utils.getJakartaDateString();
+  elements.selectedEventDate.textContent = window.utils.getJakartaDateTime();
 
   showScreen('screenScan');
   updateStats();
@@ -558,7 +577,7 @@ function goToValidation() {
 let validationTimerInterval = null;
 
 function startValidationTimer() {
-  let count = 5;
+  let count = 3;
   const circumference = 2 * Math.PI * 45; // r=45
 
   elements.timerCount.textContent = count;
@@ -571,7 +590,7 @@ function startValidationTimer() {
     count--;
     elements.timerCount.textContent = count;
 
-    const offset = circumference * (1 - count / 5);
+    const offset = circumference * (1 - count / 3);
     elements.timerProgress.style.strokeDashoffset = offset;
 
     if (count <= 0) {
@@ -683,11 +702,15 @@ async function confirmPhoto() {
 
 async function submitAbsensi() {
   const todayStr = window.utils.getJakartaDateString();
-  const now = new Date();
-  const jakartaISO = now.toISOString();
 
-  // Get Jakarta timestamp for tanggal_absen
+  // Get Jakarta timestamp (GMT+7) for all date/time fields
   const jakartaTimestamp = window.utils.getJakartaTimestamp();
+  
+  // Log timestamp for debugging
+  console.log('[TIMESTAMP DEBUG]');
+  console.log('System time:', new Date().toString());
+  console.log('Jakarta timestamp:', jakartaTimestamp);
+  console.log('Today string:', todayStr);
 
   // Default photo URL for attendance without photo
   const DEFAULT_PHOTO_URL = 'https://i.pinimg.com/736x/98/e8/cb/98e8cbbfafddf950128b90f129348d66.jpg';
@@ -759,7 +782,7 @@ async function submitAbsensi() {
           acaraId: state.selectedEvent.id,
           nama: state.scannedUser.Nama,
           posisi: state.scannedUser.Posisi,
-          tanggal: jakartaISO,
+          tanggal: jakartaTimestamp,
           photoUrl: photoUrl
         });
       } else {
@@ -770,7 +793,7 @@ async function submitAbsensi() {
           acaraId: state.selectedEvent.id,
           nama: state.scannedUser.Nama,
           posisi: state.scannedUser.Posisi,
-          tanggal: jakartaISO,
+          tanggal: jakartaTimestamp,
           photoData: photoBase64
         });
       }
@@ -882,7 +905,7 @@ async function loadEvents() {
     state.allEvents = allEvents;
 
     // Group events by today and other days
-    const todayStr = window.utils.getJakartaDateString(); // Format: YYYY-MM-DD
+    const todayStr = window.utils.getJakartaDateTime(); // Format: YYYY-MM-DD
     log('Today date:', todayStr);
 
     state.todayEvents = [];
@@ -1257,7 +1280,7 @@ async function clearLocalData() {
 // ==================== STATS UPDATE ====================
 async function updateStats() {
   try {
-    const todayStr = window.utils.getJakartaDateString();
+    const todayStr = window.utils.getJakartaDateTime();
     const allData = await window.electronAPI.getAllAbsensi();
     const unsyncedData = await window.electronAPI.getUnsyncedAbsensi();
 
@@ -1292,7 +1315,7 @@ async function loadAttendanceHistory(showLoading = true) {
 
   try {
     // Get today's date in YYYY-MM-DD format for API
-    const todayStr = window.utils.getJakartaDateString(); // Format: YYYY-MM-DD
+    const todayStr = window.utils.getJakartaDateTime(); // Format: YYYY-MM-DD
 
     let historyData = [];
 
@@ -1517,36 +1540,14 @@ function escapeHtml(text) {
 
 /**
  * Format timestamp to Jakarta timezone time (HH:MM)
- * Handles various timestamp formats including:
- * - ISO format with timezone (e.g., "2026-01-07T09:55:00+07:00")
- * - ISO format UTC (e.g., "2026-01-07T02:55:00Z" or "2026-01-07T02:55:00.000Z")
- * - SQLite format without timezone (e.g., "2026-01-07 02:55:00") - assumed UTC
- * - Date-only format (e.g., "2026-01-07")
+ * Simple: just parse the date and display in Jakarta timezone
  */
 function formatTimestampToJakarta(timeStr) {
   if (!timeStr) return '';
 
   try {
-    let date;
-
-    // Check if timestamp already has timezone info (+07:00 or similar)
-    if (timeStr.includes('+07:00') || timeStr.includes('+07')) {
-      // Already in Jakarta timezone, parse directly
-      date = new Date(timeStr);
-    } else if (timeStr.includes('Z') || timeStr.includes('+') || timeStr.includes('-')) {
-      // Has UTC indicator or other timezone, parse normally
-      date = new Date(timeStr);
-    } else if (timeStr.includes('T')) {
-      // ISO format without timezone - assume UTC
-      date = new Date(timeStr + 'Z');
-    } else if (timeStr.includes(' ') && timeStr.includes(':')) {
-      // SQLite format "YYYY-MM-DD HH:MM:SS" - assume UTC
-      // Convert to ISO format and add Z for UTC
-      date = new Date(timeStr.replace(' ', 'T') + 'Z');
-    } else {
-      // Date only or other format
-      date = new Date(timeStr);
-    }
+    // Simple approach: parse the date and convert to Jakarta time
+    const date = new Date(timeStr);
 
     if (isNaN(date.getTime())) {
       return '';

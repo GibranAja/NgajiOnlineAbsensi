@@ -177,6 +177,11 @@ class ApiService {
         tipe: data.posisi || 0,
         photoData: data.photoData || ''
       };
+      
+      console.log('[API] Sending absensi with ImageBytes:', {
+        ...payload,
+        photoData: payload.photoData ? '(base64 data)' : '(empty)'
+      });
 
       const response = await fetch(`${this.baseUrl}/Absensi/InputAbsenWithImageBytes?ApiKey=${this.apiKey}`, {
         method: 'POST',
@@ -216,6 +221,8 @@ class ApiService {
         jumlahOrang: 1,
         tipe: data.posisi || 0
       };
+      
+      console.log('[API] Sending absensi with ImageUrl:', payload);
 
       const response = await fetch(`${this.baseUrl}/Absensi/InputAbsenWithImageUrl?ApiKey=${this.apiKey}`, {
         method: 'POST',

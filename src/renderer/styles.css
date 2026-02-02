@@ -1452,6 +1452,17 @@ h1, h2, h3, h4 {
   margin-bottom: 24px;
 }
 
+.modal-countdown {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+}
+
+.modal-countdown span {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
 .modal-actions {
   display: flex;
   justify-content: center;
