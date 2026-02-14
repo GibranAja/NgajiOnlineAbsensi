@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS absensi (
   photo_data LONGTEXT NULL COMMENT 'Base64 foto',
   tanggal VARCHAR(20) NOT NULL COMMENT 'Tanggal absen (YYYY-MM-DD)',
   tanggal_absen DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Timestamp absen',
+  jamaah_id INT DEFAULT 0 COMMENT 'ID jamaah dari QR code',
   synced TINYINT DEFAULT 0 COMMENT '0=belum sync, 1=sudah sync',
   sync_error TEXT NULL COMMENT 'Error message jika gagal sync',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

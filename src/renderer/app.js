@@ -705,7 +705,7 @@ async function submitAbsensi() {
 
   // Get Jakarta timestamp (GMT+7) for all date/time fields
   const jakartaTimestamp = window.utils.getJakartaTimestamp();
-  
+
   // Log timestamp for debugging
   console.log('[TIMESTAMP DEBUG]');
   console.log('System time:', new Date().toString());
@@ -764,6 +764,7 @@ async function submitAbsensi() {
     photoUrl: photoUrl, // Store S3 URL
     tanggal: todayStr,
     tanggalAbsen: jakartaTimestamp,
+    jamaahId: state.scannedUser.OriginalId, // Map QR Id → jamaahId
     synced: false
   };
 
@@ -778,23 +779,23 @@ async function submitAbsensi() {
         // Photo already uploaded to S3, use URL endpoint
         log('Submitting absensi with S3 URL...');
         await apiService.inputAbsenWithImageUrl({
-          personId: state.scannedUser.Id, // Use Id=0 for server API
           acaraId: state.selectedEvent.id,
           nama: state.scannedUser.Nama,
           posisi: state.scannedUser.Posisi,
           tanggal: jakartaTimestamp,
-          photoUrl: photoUrl
+          photoUrl: photoUrl,
+          jamaahId: state.scannedUser.OriginalId // Map QR Id → jamaahId
         });
       } else {
         // No S3 URL, fallback to base64 upload
         log('Submitting absensi with base64 data...');
         await apiService.inputAbsenWithImageBytes({
-          personId: state.scannedUser.Id, // Use Id=0 for server API
           acaraId: state.selectedEvent.id,
           nama: state.scannedUser.Nama,
           posisi: state.scannedUser.Posisi,
           tanggal: jakartaTimestamp,
-          photoData: photoBase64
+          photoData: photoBase64,
+          jamaahId: state.scannedUser.OriginalId // Map QR Id → jamaahId
         });
       }
       synced = true;
@@ -1202,22 +1203,22 @@ async function startSync() {
         if (photoUrl) {
           // Photo already uploaded to S3, use URL endpoint
           await apiService.inputAbsenWithImageUrl({
-            personId: item.person_id,
             acaraId: item.acara_id,
             nama: item.nama,
             posisi: item.posisi,
             tanggal: new Date(item.tanggal_absen).toISOString(),
-            photoUrl: photoUrl
+            photoUrl: photoUrl,
+            jamaahId: item.jamaah_id || item.person_id // Map to jamaahId
           });
         } else {
           // No S3 URL, fallback to base64 upload
           await apiService.inputAbsenWithImageBytes({
-            personId: item.person_id,
             acaraId: item.acara_id,
             nama: item.nama,
             posisi: item.posisi,
             tanggal: new Date(item.tanggal_absen).toISOString(),
-            photoData: item.photo_data || ''
+            photoData: item.photo_data || '',
+            jamaahId: item.jamaah_id || item.person_id // Map to jamaahId
           });
         }
 

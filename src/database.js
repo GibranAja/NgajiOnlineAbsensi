@@ -95,6 +95,7 @@ class AbsensiDatabase {
         photo_url TEXT,
         tanggal TEXT NOT NULL,
         tanggal_absen TEXT DEFAULT CURRENT_TIMESTAMP,
+        jamaah_id INTEGER DEFAULT 0,
         synced INTEGER DEFAULT 0,
         sync_error TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -105,6 +106,14 @@ class AbsensiDatabase {
     try {
       this.db.run(`ALTER TABLE absensi ADD COLUMN photo_url TEXT`);
       console.log('[DB] Added photo_url column');
+    } catch (e) {
+      // Column already exists, ignore
+    }
+
+    // Add jamaah_id column if it doesn't exist (for existing databases)
+    try {
+      this.db.run(`ALTER TABLE absensi ADD COLUMN jamaah_id INTEGER DEFAULT 0`);
+      console.log('[DB] Added jamaah_id column');
     } catch (e) {
       // Column already exists, ignore
     }
@@ -141,8 +150,8 @@ class AbsensiDatabase {
   saveAbsensi(data) {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO absensi (person_id, acara_id, nama, tanggal_lahir, telepon, posisi, photo_data, photo_url, tanggal, tanggal_absen, synced)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO absensi (person_id, acara_id, nama, tanggal_lahir, telepon, posisi, photo_data, photo_url, tanggal, tanggal_absen, jamaah_id, synced)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       stmt.run([
@@ -156,6 +165,7 @@ class AbsensiDatabase {
         data.photoUrl || null,
         data.tanggal,
         data.tanggalAbsen || new Date().toISOString(),
+        data.jamaahId || 0,
         data.synced ? 1 : 0
       ]);
 

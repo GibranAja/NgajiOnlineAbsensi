@@ -168,16 +168,17 @@ class ApiService {
   async inputAbsenWithImageBytes(data) {
     try {
       const payload = {
-        id: data.personId || 0,
+        id: 0,
         tanggal: data.tanggal,
         nama: data.nama,
         photoUrl: '',
         refId: data.acaraId,
         jumlahOrang: 1,
         tipe: data.posisi || 0,
+        jamaahId: data.jamaahId || 0,
         photoData: data.photoData || ''
       };
-      
+
       console.log('[API] Sending absensi with ImageBytes:', {
         ...payload,
         photoData: payload.photoData ? '(base64 data)' : '(empty)'
@@ -213,15 +214,16 @@ class ApiService {
   async inputAbsenWithImageUrl(data) {
     try {
       const payload = {
-        id: data.personId || 0,
+        id: 0,
         tanggal: data.tanggal,
         nama: data.nama,
         photoUrl: data.photoUrl || '',
         refId: data.acaraId,
         jumlahOrang: 1,
-        tipe: data.posisi || 0
+        tipe: data.posisi || 0,
+        jamaahId: data.jamaahId || 0
       };
-      
+
       console.log('[API] Sending absensi with ImageUrl:', payload);
 
       const response = await fetch(`${this.baseUrl}/Absensi/InputAbsenWithImageUrl?ApiKey=${this.apiKey}`, {
