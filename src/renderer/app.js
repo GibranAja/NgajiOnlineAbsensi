@@ -102,6 +102,8 @@ const elements = {
   userBirthdate: null,
   timerProgress: null,
   timerCount: null,
+  timerLabel: null,
+  timerRing: null,
 
   // Photo Screen
   cameraPreview: null,
@@ -577,10 +579,23 @@ function goToValidation() {
 let validationTimerInterval = null;
 
 function startValidationTimer() {
-  let count = 3;
+  const skipPhoto = elements.noPhotoCheckbox && elements.noPhotoCheckbox.checked;
+  const duration = skipPhoto ? 1 : 3;
   const circumference = 2 * Math.PI * 45; // r=45
+  let count = duration;
 
-  elements.timerCount.textContent = count;
+  // Configure display based on photo mode
+  if (skipPhoto) {
+    if (elements.timerRing) elements.timerRing.style.display = 'none';
+    elements.timerCount.style.display = 'none';
+    if (elements.timerLabel) elements.timerLabel.textContent = 'Tunggu Sebentar!';
+  } else {
+    if (elements.timerRing) elements.timerRing.style.display = '';
+    elements.timerCount.style.display = '';
+    elements.timerCount.textContent = count;
+    if (elements.timerLabel) elements.timerLabel.textContent = 'Memverifikasi data...';
+  }
+
   elements.timerProgress.style.strokeDasharray = circumference;
   elements.timerProgress.style.strokeDashoffset = 0;
 
@@ -588,10 +603,12 @@ function startValidationTimer() {
 
   validationTimerInterval = setInterval(() => {
     count--;
-    elements.timerCount.textContent = count;
 
-    const offset = circumference * (1 - count / 3);
-    elements.timerProgress.style.strokeDashoffset = offset;
+    if (!skipPhoto) {
+      elements.timerCount.textContent = count;
+      const offset = circumference * (1 - count / duration);
+      elements.timerProgress.style.strokeDashoffset = offset;
+    }
 
     if (count <= 0) {
       clearInterval(validationTimerInterval);
@@ -850,8 +867,11 @@ function goToSuccess() {
 
   showScreen('screenSuccess');
 
-  // Auto return countdown
-  let count = 3;
+  // Auto return countdown — 1.5s if no photo, 3s if with photo
+  const skipPhoto = elements.noPhotoCheckbox && elements.noPhotoCheckbox.checked;
+  const countdownDuration = skipPhoto ? 2 : 3;
+  const countdownInterval = skipPhoto ? 750 : 1000;
+  let count = countdownDuration;
   elements.successCountdown.textContent = count;
 
   clearInterval(successTimerInterval);
@@ -863,7 +883,7 @@ function goToSuccess() {
       clearInterval(successTimerInterval);
       returnToScan();
     }
-  }, 1000);
+  }, countdownInterval);
 }
 
 function returnToScan() {
@@ -1666,6 +1686,8 @@ function initElements() {
   elements.userBirthdate = document.getElementById('userBirthdate');
   elements.timerProgress = document.getElementById('timerProgress');
   elements.timerCount = document.getElementById('timerCount');
+  elements.timerLabel = document.getElementById('timerLabel');
+  elements.timerRing = document.querySelector('.timer-ring');
 
   elements.cameraPreview = document.getElementById('cameraPreview');
   elements.photoCanvas = document.getElementById('photoCanvas');
