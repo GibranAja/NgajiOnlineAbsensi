@@ -363,6 +363,20 @@ async function processBarcode() {
     // Store user data and proceed
     state.scannedUser = userData;
     hideScanError();
+
+    // If "Tanpa Photo" mode, skip validation & success screens
+    const skipPhoto = elements.noPhotoCheckbox && elements.noPhotoCheckbox.checked;
+    if (skipPhoto) {
+      try {
+        await submitAbsensi();
+      } catch (error) {
+        console.error('Submit error:', error);
+        showToast('Gagal menyimpan absensi', 'error');
+      }
+      returnToScan();
+      return;
+    }
+
     log('Proceeding to validation...');
     goToValidation();
 
@@ -627,12 +641,11 @@ async function goToPhotoCapture() {
     log('Skipping photo capture - will use default SVG');
     try {
       await submitAbsensi();
-      goToSuccess();
     } catch (error) {
       console.error('Submit error:', error);
       showToast('Gagal menyimpan ke server, disimpan lokal', 'error');
-      goToSuccess();
     }
+    returnToScan();
     return;
   }
 
