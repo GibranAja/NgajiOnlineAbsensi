@@ -174,7 +174,7 @@ class ApiService {
         photoUrl: '',
         refId: data.acaraId,
         jumlahOrang: 1,
-        tipe: data.posisi || 0,
+        tipe: 0,
         jamaahId: data.jamaahId || 0,
         photoData: data.photoData || ''
       };
@@ -220,7 +220,7 @@ class ApiService {
         photoUrl: data.photoUrl || '',
         refId: data.acaraId,
         jumlahOrang: 1,
-        tipe: data.posisi || 0,
+        tipe: 0,
         jamaahId: data.jamaahId || 0
       };
 

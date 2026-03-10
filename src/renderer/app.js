@@ -776,7 +776,7 @@ async function submitAbsensi() {
     nama: state.scannedUser.Nama,
     tanggalLahir: state.scannedUser.TanggalLahir,
     telepon: state.scannedUser.Telepon,
-    posisi: state.scannedUser.Posisi,
+    posisi: 0,
     photoData: photoUrl ? '' : photoBase64, // Only store base64 if S3 upload failed
     photoUrl: photoUrl, // Store S3 URL
     tanggal: todayStr,
@@ -798,7 +798,7 @@ async function submitAbsensi() {
         await apiService.inputAbsenWithImageUrl({
           acaraId: state.selectedEvent.id,
           nama: state.scannedUser.Nama,
-          posisi: state.scannedUser.Posisi,
+          posisi: 0,
           tanggal: jakartaTimestamp,
           photoUrl: photoUrl,
           jamaahId: state.scannedUser.OriginalId // Map QR Id → jamaahId
@@ -809,7 +809,7 @@ async function submitAbsensi() {
         await apiService.inputAbsenWithImageBytes({
           acaraId: state.selectedEvent.id,
           nama: state.scannedUser.Nama,
-          posisi: state.scannedUser.Posisi,
+          posisi: 0,
           tanggal: jakartaTimestamp,
           photoData: photoBase64,
           jamaahId: state.scannedUser.OriginalId // Map QR Id → jamaahId
@@ -1225,7 +1225,7 @@ async function startSync() {
           await apiService.inputAbsenWithImageUrl({
             acaraId: item.acara_id,
             nama: item.nama,
-            posisi: item.posisi,
+            posisi: 0,
             tanggal: new Date(item.tanggal_absen).toISOString(),
             photoUrl: photoUrl,
             jamaahId: item.jamaah_id || item.person_id // Map to jamaahId
@@ -1235,7 +1235,7 @@ async function startSync() {
           await apiService.inputAbsenWithImageBytes({
             acaraId: item.acara_id,
             nama: item.nama,
-            posisi: item.posisi,
+            posisi: 0,
             tanggal: new Date(item.tanggal_absen).toISOString(),
             photoData: item.photo_data || '',
             jamaahId: item.jamaah_id || item.person_id // Map to jamaahId
